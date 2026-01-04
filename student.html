@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartAttend - Student Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { 
+      max-width: 1400px; 
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 28px; }
+    .user-welcome { display: flex; gap: 15px; align-items: center; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover { 
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    .main-content {
+      padding: 30px;
+    }
+    .stats-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 25px;
+      border-radius: 16px;
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .stat-card h3 {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+    }
+    .stat-value {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .content-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    .section {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .section h2 {
+      color: #1e293b;
+      margin-bottom: 20px;
+      font-size: 20px;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .calendar-header {
+      text-align: center;
+      font-weight: 600;
+      color: #475569;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .calendar-day:hover {
+      transform: scale(1.1);
+    }
+    .day-present {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .day-absent {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .day-late {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .day-holiday {
+      background: #f1f5f9;
+      color: #94a3b8;
+    }
+    .day-empty {
+      background: transparent;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-top: 20px;
+    }
+    .ai-section {
+      grid-column: span 2;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .ai-section h2 {
+      color: white;
+      border-color: white;
+    }
+    .ai-insights {
+      display: grid;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .insight-card {
+      background: rgba(255,255,255,0.15);
+      padding: 20px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+    .insight-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .chat-interface {
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .chat-messages {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+    .message {
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      animation: slideIn 0.3s;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message.user {
+      background: rgba(255,255,255,0.3);
+      margin-left: 20%;
+    }
+    .message.ai {
+      background: rgba(255,255,255,0.2);
+      margin-right: 20%;
+    }
+    .chat-input-group {
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input-group input {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      font-size: 14px;
+    }
+    .chat-input-group input::placeholder {
+      color: rgba(255,255,255,0.7);
+    }
+    .chat-input-group input:focus {
+      outline: none;
+      border-color: white;
+      background: rgba(255,255,255,0.3);
+    }
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #475569;
+    }
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+    }
+    .achievements {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .achievement-badge {
+      text-align: center;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .badge-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    .badge-title {
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 5px;
+    }
+    .badge-desc {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎓 SmartAttend - Student Portal</h1>
+      <div class="user-welcome">
+        <span id="studentName">Hello, Student!</span>
+        <button class="btn btn-danger" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <!-- Stats Overview -->
+      <div class="stats-overview">
+        <div class="stat-card">
+          <h3>ATTENDANCE PERCENTAGE</h3>
+          <div class="stat-value" id="attendancePercentage">85%</div>
+          <div class="stat-label">Overall Performance</div>
+        </div>
+        <div class="stat-card">
+          <h3>CURRENT STREAK</h3>
+          <div class="stat-value" id="streakDays">15</div>
+          <div class="stat-label">Consecutive Days</div>
+        </div>
+        <div class="stat-card">
+          <h3>THIS MONTH</h3>
+          <div class="stat-value" id="monthAttendance">20/23</div>
+          <div class="stat-label">Days Present</div>
+        </div>
+        <div class="stat-card">
+          <h3>RANK</h3>
+          <div class="stat-value" id="classRank">12</div>
+          <div class="stat-label">In Your Class</div>
+        </div>
+      </div>
+
+      <!-- Content Grid -->
+      <div class="content-grid">
+        <!-- Calendar Section -->
+        <div class="section">
+          <h2>📅 Attendance Calendar - December 2025</h2>
+          <div class="calendar">
+            <div class="calendar-header">Mon</div>
+            <div class="calendar-header">Tue</div>
+            <div class="calendar-header">Wed</div>
+            <div class="calendar-header">Thu</div>
+            <div class="calendar-header">Fri</div>
+            <div class="calendar-header">Sat</div>
+            <div class="calendar-header">Sun</div>
+            
+            <!-- Days will be populated by JavaScript -->
+            <div id="calendarDays"></div>
+          </div>
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background: #dcfce7;"></div>
+              <span>Present</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #fee2e2;"></div>
+              <span>Absent</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #fef3c7;"></div>
+              <span>Late</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #f1f5f9;"></div>
+              <span>Holiday</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Achievements -->
+        <div class="section">
+          <h2>🏆 Achievements</h2>
+          <div class="achievements">
+            <div class="achievement-badge">
+              <div class="badge-icon">🔥</div>
+              <div class="badge-title">15 Day Streak</div>
+              <div class="badge-desc">Keep it up!</div>
+            </div>
+            <div class="achievement-badge">
+              <div class="badge-icon">⭐</div>
+              <div class="badge-title">90% Club</div>
+              <div class="badge-desc">Excellent!</div>
+            </div>
+            <div class="achievement-badge">
+              <div class="badge-icon">📚</div>
+              <div class="badge-title">Perfect Week</div>
+              <div class="badge-desc">Last week</div>
+            </div>
+            <div class="achievement-badge">
+              <div class="badge-icon">🎯</div>
+              <div class="badge-title">On Track</div>
+              <div class="badge-desc">Monthly goal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="content-grid">
+        <div class="section">
+          <h2>📊 Attendance Trend (Last 30 Days)</h2>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>📈 Monthly Overview</h2>
+          <div class="chart-container">
+            <canvas id="monthlyChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Section -->
+      <div class="content-grid">
+        <div class="section ai-section">
+          <h2>🤖 AI Assistant (Powered by Gemini)</h2>
+          <div class="ai-insights">
+            <div class="insight-card">
+              <div class="insight-icon">💡</div>
+              <strong>Great Progress!</strong>
+              <p>Your attendance is 85%, which is excellent! You're on track to maintain your good standing.</p>
+            </div>
+            <div class="insight-card">
+              <div class="insight-icon">📈</div>
+              <strong>Improvement Trend</strong>
+              <p>You've attended all classes this week. Keep up the consistency!</p>
+            </div>
+            <div class="insight-card">
+              <div class="insight-icon">🎯</div>
+              <strong>Goal Tracking</strong>
+              <p>Just 3 more days of attendance to reach 90% milestone this month!</p>
+            </div>
+          </div>
+          
+          <div class="chat-interface">
+            <h3 style="margin-bottom: 15px;">💬 Chat with AI</h3>
+            <div class="chat-messages" id="chatMessages">
+              <div class="message ai">
+                Hello! I'm your AI attendance assistant. Ask me anything about your attendance, or get personalized suggestions!
+              </div>
+            </div>
+            <div class="chat-input-group">
+              <input type="text" id="chatInput" placeholder="Ask me anything..." onkeypress="handleEnter(event)">
+              <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock student data
+    const studentData = {
+      name: 'Rahul Sharma',
+      rollNumber: '2024001',
+      attendancePercentage: 85,
+      streak: 15,
+      monthPresent: 20,
+      monthTotal: 23,
+      rank: 12
+    };
+
+    // Generate calendar data
+    function generateCalendar() {
+      const calendarDays = document.getElementById('calendarDays');
+      const daysInMonth = 31;
+      const firstDay = 0; // Monday (December 2025 starts on Monday)
+      
+      // Mock attendance data (1 = present, 0 = absent, 2 = late, 3 = holiday)
+      const attendanceData = [
+        1, 1, 1, 1, 1, 3, 3,  // Week 1
+        1, 0, 1, 1, 2, 3, 3,  // Week 2
+        1, 1, 1, 0, 1, 3, 3,  // Week 3
+        1, 1, 1, 1, 1, 3, 3,  // Week 4
+        1, 1, 1              // Week 5 (partial)
+      ];
+      
+      let html = '';
+      
+      // Add empty cells for days before month starts
+      for (let i = 0; i < firstDay; i++) {
+        html += '<div class="calendar-day day-empty"></div>';
+      }
+      
+      // Add days of the month
+      for (let day = 1; day <= daysInMonth; day++) {
+        const status = attendanceData[day - 1] || 0;
+        let className = 'calendar-day ';
+        
+        if (day > 25) {
+          className += 'day-holiday'; // Future days
+        } else {
+          switch(status) {
+            case 1: className += 'day-present'; break;
+            case 0: className += 'day-absent'; break;
+            case 2: className += 'day-late'; break;
+            case 3: className += 'day-holiday'; break;
+          }
+        }
+        
+        html += `<div class="${className}" title="December ${day}">${day}</div>`;
+      }
+      
+      calendarDays.innerHTML = html;
+    }
+
+    // Initialize charts
+    function initializeCharts() {
+      // Trend Chart
+      const trendCtx = document.getElementById('trendChart').getContext('2d');
+      new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: Array.from({length: 30}, (_, i) => `Day ${i + 1}`),
+          datasets: [{
+            label: 'Daily Attendance',
+            data: generateTrendData(),
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 1,
+              ticks: {
+                callback: function(value) {
+                  return value === 1 ? 'Present' : 'Absent';
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Monthly Chart
+      const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+      new Chart(monthlyCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Present', 'Absent', 'Late'],
+          datasets: [{
+            data: [20, 2, 1],
+            backgroundColor: ['#10b981', '#ef4444', '#f59e0b']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    function generateTrendData() {
+      // Generate realistic attendance data (mostly 1s with some 0s)
+      const data = [];
+      for (let i = 0; i < 30; i++) {
+        data.push(Math.random() > 0.15 ? 1 : 0);
+      }
+      return data;
+    }
+
+    // Chat functionality
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      
+      if (!message) return;
+      
+      // Add user message
+      addChatMessage('user', message);
+      input.value = '';
+      
+      // Simulate AI response
+      setTimeout(() => {
+        const response = generateAIResponse(message);
+        addChatMessage('ai', response);
+      }, 1000);
+    }
+
+    function addChatMessage(type, text) {
+      const messagesDiv = document.getElementById('chatMessages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+      messageDiv.textContent = text;
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function generateAIResponse(userMessage) {
+      const responses = {
+        'attendance': 'Your current attendance is 85%, which is above the required 75%. Great job!',
+        'improve': 'To improve your attendance, try setting reminders and maintaining a consistent schedule.',
+        'percentage': 'Your attendance percentage is 85%. You need to attend 3 more classes to reach 90%.',
+        'streak': 'Your current streak is 15 days! Keep it up to unlock the 30-day streak badge.',
+        'default': 'Based on your attendance pattern, you\'re doing great! Keep maintaining consistency.'
+      };
+      
+      const lowerMessage = userMessage.toLowerCase();
+      
+      for (const [key, response] of Object.entries(responses)) {
+        if (lowerMessage.includes(key)) {
+          return response;
+        }
+      }
+      
+      return responses.default;
+    }
+
+    function handleEnter(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+
+    // Logout
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        alert('Logged out successfully!');
+      }
+    }
+
+    // Update stats
+    function updateStats() {
+      document.getElementById('studentName').textContent = `Hello, ${studentData.name}!`;
+      document.getElementById('attendancePercentage').textContent = studentData.attendancePercentage + '%';
+      document.getElementById('streakDays').textContent = studentData.streak;
+      document.getElementById('monthAttendance').textContent = 
+        `${studentData.monthPresent}/${studentData.monthTotal}`;
+      document.getElementById('classRank').textContent = studentData.rank;
+    }
+
+    // Initialize everything
+    window.addEventListener('load', () => {
+      updateStats();
+      generateCalendar();
+      initializeCharts();
+    });
+  </script>
+</body>
+</html>
